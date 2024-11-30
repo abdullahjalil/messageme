@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -15,7 +15,41 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-setPersistence(auth, browserLocalPersistence);
+setPersistence(auth, browserSessionPersistence);
 const db = getFirestore(app);
+
+// Set up activity tracking
+let inactivityTimeout;
+const TIMEOUT_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+
+const resetInactivityTimer = () => {
+  if (inactivityTimeout) {
+    clearTimeout(inactivityTimeout);
+  }
+  inactivityTimeout = setTimeout(() => {
+    if (auth.currentUser) {
+      signOut(auth);
+    }
+  }, TIMEOUT_DURATION);
+};
+
+// Track user activity
+if (typeof window !== 'undefined') {
+  // Reset timer on user activity
+  ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(
+    event => {
+      document.addEventListener(event, resetInactivityTimer, true);
+    }
+  );
+
+  // Set up auth state listener
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      resetInactivityTimer();
+    } else if (inactivityTimeout) {
+      clearTimeout(inactivityTimeout);
+    }
+  });
+}
 
 export { auth, db };
