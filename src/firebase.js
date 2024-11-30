@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, setPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   // your config
@@ -17,6 +18,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 setPersistence(auth, browserSessionPersistence);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // Set up activity tracking
 let inactivityTimeout;
@@ -52,4 +54,4 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export { auth, db };
+export { auth, db, storage };

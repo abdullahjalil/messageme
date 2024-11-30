@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { collection, addDoc, getDocs, orderBy, query, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { db, auth } from '../firebase';
-import { ArrowUp, ArrowDown, MessageSquare, Trash, LogOut } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, auth, storage } from '../firebase';
+import { ArrowUp, ArrowDown, MessageSquare, Trash, LogOut, Image } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { updateActivity } from '../utils/sessionHelper';
 
@@ -16,13 +17,19 @@ function ForumPage() {
   const [newComment, setNewComment] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const subforums = ['general', 'tech', 'gaming', 'sports', 'news'];
+
+
+
 
   // Activity tracking
   useEffect(() => {
     const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-    
+
     const handleActivity = () => {
       updateActivity();
     };
@@ -42,7 +49,7 @@ function ForumPage() {
     try {
       setIsLoading(true);
       const q = query(
-        collection(db, 'posts'), 
+        collection(db, 'posts'),
         orderBy(sortBy === 'new' ? 'timestamp' : 'votes', 'desc')
       );
       const querySnapshot = await getDocs(q);
@@ -75,11 +82,37 @@ function ForumPage() {
     fetchPosts();
   }, [fetchPosts]);
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  const uploadImage = async (file) => {
+    if (!file) return null;
+    const fileRef = ref(storage, `post-images/${Date.now()}-${file.name}`);
+    await uploadBytes(fileRef, file);
+    return await getDownloadURL(fileRef);
+  };
+
+
   const createPost = async (e) => {
     e.preventDefault();
     if (!title.trim() || !newPost.trim()) return;
 
     try {
+      setIsUploading(true);
+      let imageUrl = null;
+      if (selectedImage) {
+        imageUrl = await uploadImage(selectedImage);
+      }
+
       await addDoc(collection(db, 'posts'), {
         title,
         content: newPost,
@@ -89,14 +122,19 @@ function ForumPage() {
         timestamp: serverTimestamp(),
         votes: 0,
         subforum: selectedSubforum,
-        commentCount: 0
+        commentCount: 0,
+        imageUrl
       });
 
       setTitle('');
       setNewPost('');
+      setSelectedImage(null);
+      setImagePreview(null);
       fetchPosts();
     } catch (error) {
       console.error('Error creating post:', error);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -173,7 +211,7 @@ function ForumPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <h1 className="text-xl sm:text-2xl font-bold text-[#FBE9D0]">PROMETHEUS FORUM</h1>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              <select 
+              <select
                 value={selectedSubforum}
                 onChange={(e) => setSelectedSubforum(e.target.value)}
                 className="flex-1 sm:flex-none bg-[#90AEAD] text-[#244855] border-none rounded px-2 py-1.5 text-sm"
@@ -182,7 +220,7 @@ function ForumPage() {
                   <option key={forum} value={forum}>{forum.toUpperCase()}</option>
                 ))}
               </select>
-              <select 
+              <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="flex-1 sm:flex-none bg-[#90AEAD] text-[#244855] border-none rounded px-2 py-1.5 text-sm"
@@ -220,11 +258,48 @@ function ForumPage() {
                 onChange={(e) => setNewPost(e.target.value)}
                 className="w-full p-2 rounded h-24 text-[#244855] bg-[#FBE9D0] text-sm"
               />
+              {/* Image upload section */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="bg-[#244855] text-[#FBE9D0] p-2 rounded hover:bg-[#874F41] transition-colors">
+                    <Image size={20} />
+                  </div>
+                  <span className="text-sm text-[#244855]">Add Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
+
+                {imagePreview && (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-48 object-cover rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedImage(null);
+                        setImagePreview(null);
+                      }}
+                      className="absolute top-2 right-2 bg-[#E64833] text-[#FBE9D0] p-1 rounded-full hover:bg-[#874F41]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
-                className="w-full bg-[#E64833] text-[#FBE9D0] p-2 rounded hover:bg-[#874F41] uppercase font-bold text-sm"
+                disabled={isUploading}
+                className={`w-full bg-[#E64833] text-[#FBE9D0] p-2 rounded hover:bg-[#874F41] uppercase font-bold text-sm ${isUploading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
               >
-                Post
+                {isUploading ? 'Uploading...' : 'Post'}
               </button>
             </form>
           </div>
@@ -240,21 +315,21 @@ function ForumPage() {
               <div key={post.id} className="bg-[#90AEAD] rounded-lg shadow-lg p-4">
                 <div className="flex gap-2">
                   <div className="flex flex-col items-center">
-                    <button 
+                    <button
                       onClick={() => handleVote(post.id, 1)}
                       className="text-[#244855] hover:text-[#E64833] p-1"
                     >
                       <ArrowUp size={18} />
                     </button>
                     <span className="text-sm font-bold text-[#244855]">{post.votes || 0}</span>
-                    <button 
+                    <button
                       onClick={() => handleVote(post.id, -1)}
                       className="text-[#244855] hover:text-[#E64833] p-1"
                     >
                       <ArrowDown size={18} />
                     </button>
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <h3 className="text-base sm:text-lg font-bold text-[#244855] break-words">
                       {post.title}
@@ -262,12 +337,22 @@ function ForumPage() {
                     <p className="text-[#244855] mt-2 text-sm sm:text-base break-words">
                       {post.content}
                     </p>
+                    {post.imageUrl && (
+                      <div className="mt-2">
+                        <img
+                          src={post.imageUrl}
+                          alt="Post content"
+                          className="w-full max-h-96 object-cover rounded"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center text-xs sm:text-sm text-[#244855] mt-2 gap-2">
                       <span className="font-medium">{post.author}</span>
                       <span>•</span>
                       <span>{post.timestamp?.toDate().toLocaleDateString()}</span>
                       {post.authorId === auth.currentUser?.uid && (
-                        <button 
+                        <button
                           onClick={() => deletePost(post.id)}
                           className="text-[#E64833] hover:text-[#874F41]"
                         >
