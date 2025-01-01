@@ -6,8 +6,12 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   sendEmailVerification,
+<<<<<<< HEAD
   updateProfile,
   RecaptchaVerifier
+=======
+  updateProfile
+>>>>>>> parent of bf34cec (added captcha support)
 } from 'firebase/auth';
 import { collection, addDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -20,8 +24,14 @@ function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+<<<<<<< HEAD
   const handleSignUp = useCallback(async (e) => {
     if (e) e.preventDefault();
+=======
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+>>>>>>> parent of bf34cec (added captcha support)
     if (!displayName.trim()) {
       setError('Display name is required');
       return;
@@ -33,6 +43,10 @@ function Login() {
       
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
+<<<<<<< HEAD
+=======
+      // Update the user's display name
+>>>>>>> parent of bf34cec (added captcha support)
       await updateProfile(userCredential.user, {
         displayName: displayName.trim()
       });
@@ -135,12 +149,19 @@ function Login() {
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
+<<<<<<< HEAD
                 className="w-full p-3 border-2 border-[#244855] rounded bg-[#FBE9D0] text-[#244855]"
+=======
+                className="w-full p-3 border-2 border-[#244855] rounded bg-[#FBE9D0] text-[#244855] placeholder-[#874F41]"
+>>>>>>> parent of bf34cec (added captcha support)
                 placeholder="Enter your display name"
               />
             </div>
           )}
+<<<<<<< HEAD
           
+=======
+>>>>>>> parent of bf34cec (added captcha support)
           <div>
             <label className="block text-[#244855] mb-2 text-sm uppercase">Email</label>
             <input
@@ -165,20 +186,17 @@ function Login() {
           <div className="flex flex-col sm:flex-row gap-3">
             {isRegistering ? (
               <button
-                id="sign-up-button"
                 onClick={handleSignUp}
-                disabled={isLoading}
-                className="w-full bg-[#E64833] text-[#FBE9D0] p-3 rounded hover:bg-[#874F41] transition-colors text-sm uppercase font-bold tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#E64833] text-[#FBE9D0] p-3 rounded hover:bg-[#874F41] transition-colors text-sm uppercase font-bold tracking-wider"
               >
-                {isLoading ? 'Creating Account...' : 'Sign Up'}
+                Sign Up
               </button>
             ) : (
               <button
                 onClick={handleLogin}
-                disabled={isLoading}
                 className="w-full bg-[#244855] text-[#FBE9D0] p-3 rounded hover:bg-[#874F41] transition-colors text-sm uppercase font-bold tracking-wider"
               >
-                {isLoading ? 'Logging in...' : 'Login'}
+                Login
               </button>
             )}
           </div>
